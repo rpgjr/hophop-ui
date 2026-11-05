@@ -1,25 +1,24 @@
-import { STATUSES } from "../../assets/data/statuses";
+import type { Status } from "../../api/types";
 
 type Props = {
-  value: string;
+  value: Status;
+  statuses: Status[];
   label: string; // job title, for screen readers
-  onChange: (status: string) => void;
+  onChange: (statusId: number) => void;
 };
 
-export default function StatusSelect({ value, label, onChange }: Props) {
-  // keep showing the current value even if it was removed from the list
-  const options = STATUSES.includes(value) ? STATUSES : [...STATUSES, value];
-
+export default function StatusSelect({ value, statuses, label, onChange }: Props) {
   return (
     <select
-      className="select select-sm"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+      className="select select-sm font-semibold"
+      style={{ color: value.color, borderColor: value.color }}
+      value={value.id}
+      onChange={(e) => onChange(Number(e.target.value))}
       aria-label={`Status for ${label}`}
     >
-      {options.map((s) => (
-        <option key={s} value={s}>
-          {s}
+      {statuses.map((s) => (
+        <option key={s.id} value={s.id} style={{ color: s.color }}>
+          {s.name}
         </option>
       ))}
     </select>

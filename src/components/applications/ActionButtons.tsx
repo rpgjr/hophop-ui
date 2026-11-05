@@ -1,5 +1,5 @@
 import { ExternalLink, Eye, Trash2 } from "lucide-react";
-import type { ApplicationEntry } from "../../assets/data/applications";
+import type { ApplicationEntry } from "../../api/types";
 
 type Props = {
   entry: ApplicationEntry;

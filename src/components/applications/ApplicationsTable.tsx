@@ -1,18 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
-  MOCK_APPLICATIONS,
-  type ApplicationEntry,
-} from "../../assets/data/applications";
-import { STATUSES } from "../../assets/data/statuses";
+  deleteApplication,
+  getApplications,
+  getStatuses,
+  updateApplicationStatus,
+} from "../../api/client";
+import type { ApplicationEntry, Currency, Status } from "../../api/types";
+import { CURRENCY_LOCALE, CURRENCY_SYMBOLS } from "../../config";
 import ActionButtons from "./ActionButtons";
 import StatusSelect from "./StatusSelect";
 
 type SortKey = "salary" | "setup" | "status";
 type SortState = { key: SortKey; dir: "asc" | "desc" } | null;
 
-function formatSalary(salary: number | null): string {
-  return salary === null ? "—" : `₱${salary.toLocaleString("en-PH")}`;
+function formatSalary(
+  min: number | null,
+  max: number | null,
+  currency: Currency,
+): string {
+  if (min === null) return "—";
+  const fmt = (n: number) =>
+    `${CURRENCY_SYMBOLS[currency]}${n.toLocaleString(CURRENCY_LOCALE)}`;
+  return max === null || max === min ? fmt(min) : `${fmt(min)} – ${fmt(max)}`;
 }
 
 // Below md, each row turns into a card and each cell shows its data-label
@@ -51,9 +61,10 @@ function SortHeader({
 }
 
 export default function ApplicationsTable({ date }: { date: string }) {
-  const [entries, setEntries] = useState<ApplicationEntry[]>(
-    MOCK_APPLICATIONS[date] ?? [],
-  );
+  const [entries, setEntries] = useState<ApplicationEntry[]>([]);
+  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState>(null);
 
   // click once = ascending, twice = descending, third time = no sort
@@ -63,13 +74,29 @@ export default function ApplicationsTable({ date }: { date: string }) {
     else setSort(null);
   };
 
-  const handleStatusChange = (id: number, status: string) => {
-    setEntries(entries.map((e) => (e.id === id ? { ...e, status } : e)));
+  useEffect(() => {
+    Promise.all([getApplications(date, date), getStatuses()])
+      .then(([apps, sts]) => {
+        setEntries(apps);
+        setStatuses(sts);
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [date]);
+
+  const handleStatusChange = (id: number, statusId: number) => {
+    updateApplicationStatus(id, statusId)
+      .then((updated) =>
+        setEntries((prev) => prev.map((e) => (e.id === id ? updated : e))),
+      )
+      .catch((err: Error) => setError(err.message));
   };
 
   const handleRemove = (entry: ApplicationEntry) => {
     if (!window.confirm(`Remove "${entry.title}" at ${entry.company}?`)) return;
-    setEntries(entries.filter((e) => e.id !== entry.id));
+    deleteApplication(entry.id)
+      .then(() => setEntries((prev) => prev.filter((e) => e.id !== entry.id)))
+      .catch((err: Error) => setError(err.message));
   };
 
   const sorted = useMemo(() => {
@@ -78,16 +105,28 @@ export default function ApplicationsTable({ date }: { date: string }) {
 
     return [...entries].sort((a, b) => {
       if (sort.key === "salary") {
-        if (a.salary === null) return 1; // no salary always goes last
-        if (b.salary === null) return -1;
-        return (a.salary - b.salary) * dir;
+        if (a.salaryMin === null) return 1; // no salary always goes last
+        if (b.salaryMin === null) return -1;
+        return (a.salaryMin - b.salaryMin) * dir;
       }
       if (sort.key === "setup") {
         return a.setup.localeCompare(b.setup) * dir;
       }
-      return (STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status)) * dir;
+      return a.status.name.localeCompare(b.status.name) * dir;
     });
   }, [entries, sort]);
+
+  if (loading) {
+    return <span className="loading loading-spinner" aria-label="Loading" />;
+  }
+
+  if (error) {
+    return (
+      <div role="alert" className="alert alert-error">
+        {error}
+      </div>
+    );
+  }
 
   if (entries.length === 0) {
     return (
@@ -114,8 +153,8 @@ export default function ApplicationsTable({ date }: { date: string }) {
         <option value="salary-desc">Salary: high to low</option>
         <option value="salary-asc">Salary: low to high</option>
         <option value="setup-asc">Setup: A to Z</option>
-        <option value="status-asc">Status: list order</option>
-        <option value="status-desc">Status: reverse order</option>
+        <option value="status-asc">Status: A to Z</option>
+        <option value="status-desc">Status: Z to A</option>
       </select>
 
       <div className="rounded-box border-base-300 overflow-x-auto md:border">
@@ -161,7 +200,7 @@ export default function ApplicationsTable({ date }: { date: string }) {
                   {e.company}
                 </td>
                 <td data-label="Salary" className={`${CELL} whitespace-nowrap`}>
-                  {formatSalary(e.salary)}
+                  {formatSalary(e.salaryMin, e.salaryMax, e.salaryCurrency)}
                 </td>
                 <td data-label="Setup" className={CELL}>
                   <span className="badge badge-outline">{e.setup}</span>
@@ -169,13 +208,14 @@ export default function ApplicationsTable({ date }: { date: string }) {
                 <td
                   data-label="Remarks"
                   className={`${CELL} md:max-w-48 md:truncate`}
-                  title={e.remarks}
+                  title={e.remarks ?? undefined}
                 >
                   {e.remarks || "—"}
                 </td>
                 <td data-label="Status" className={CELL}>
                   <StatusSelect
                     value={e.status}
+                    statuses={statuses}
                     label={e.title}
                     onChange={(s) => handleStatusChange(e.id, s)}
                   />

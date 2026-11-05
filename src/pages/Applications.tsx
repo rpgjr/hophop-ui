@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import ApplicationsTable from "../components/applications/ApplicationsTable";
+import AddJobModal from "../components/applications/AddJobModal";
 
 export default function Applications() {
   const { date } = useParams<{ date: string }>();
@@ -33,7 +34,11 @@ export default function Applications() {
         <ArrowLeft size={16} />
         Back to calendar
       </Link>
-      <h1 className="mb-4 text-xl font-bold sm:text-2xl">{label}</h1>
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-xl font-bold sm:text-2xl">{label}</h1>
+
+        <AddJobModal />
+      </div>
 
       {/* key makes the table start fresh when the date in the URL changes */}
       <ApplicationsTable key={date} date={date} />

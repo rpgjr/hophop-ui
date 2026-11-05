@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MOCK_APPLICATIONS } from "../../assets/data/applications";
+import { getApplications } from "../../api/client";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -14,12 +14,25 @@ function toDateKey(d: Date): string {
 export default function Calendar() {
   const navigate = useNavigate();
   const [viewDate, setViewDate] = useState(new Date());
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = toDateKey(new Date());
+
+  useEffect(() => {
+    const from = toDateKey(new Date(year, month, 1));
+    const to = toDateKey(new Date(year, month + 1, 0));
+    getApplications(from, to)
+      .then((apps) => {
+        const next: Record<string, number> = {};
+        for (const a of apps) next[a.appliedDate] = (next[a.appliedDate] ?? 0) + 1;
+        setCounts(next);
+      })
+      .catch(() => setCounts({}));
+  }, [year, month]);
 
   const cells: (number | null)[] = [
     ...Array(firstWeekday).fill(null),
@@ -70,7 +83,7 @@ export default function Calendar() {
 
             const key = toDateKey(new Date(year, month, day));
             const isToday = key === todayKey;
-            const count = MOCK_APPLICATIONS[key]?.length ?? 0;
+            const count = counts[key] ?? 0;
 
             return (
               <button
