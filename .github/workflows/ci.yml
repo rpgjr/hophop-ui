@@ -2,10 +2,10 @@ name: CI
 
 # it will only run on every pull request to the main branch
 on:
-  pull-request:
+  pull_request:
     branches: [main]
 
-permission:
+permissions:
   contents: read
 
 # if you push something when checks is running, the old checks for the old commit will be canceled and
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    time-out-minutes: 15
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
