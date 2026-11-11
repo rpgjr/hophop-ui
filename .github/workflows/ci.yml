@@ -1,0 +1,15 @@
+name: CI
+
+# it will only run on every pull request to the main branch
+on:
+  pull-request:
+    branches: [main]
+
+permission:
+  contents: read
+
+# if you push something when checks is running, the old checks for the old commit will be canceled and
+# replaced with the new checks for the new commit
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
