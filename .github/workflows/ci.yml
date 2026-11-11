@@ -1,0 +1,41 @@
+name: CI
+
+# it will only run on every pull request to the main branch
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# if you push something when checks is running, the old checks for the old commit will be canceled and
+# replaced with the new checks for the new commit
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # install nodejs and cache it (retain it) between runs to speed up the workflow
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
