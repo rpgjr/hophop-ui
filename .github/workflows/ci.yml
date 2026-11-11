@@ -15,27 +15,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - uses: actions/checkout@v4
-
-      # install nodejs and cache it (retain it) between runs to speed up the workflow
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - run: npm ci
+      - run: npm run lint
 
-      - name: Install
-        run: npm ci
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run npx tsc --noEmit
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Type Check
-        run: npx tsc --noEmit
-
-      - name: Build
-        run: npm run build
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
